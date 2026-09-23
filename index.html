@@ -93,7 +93,7 @@ tr:nth-child(even) td{background:#f8faf9}
 .number-cell{font-weight:700;color:var(--verde)}
 .exec-summary{background:linear-gradient(135deg,var(--verde) 0%,var(--verde-light) 100%);color:white;border-radius:8px;padding:20px;margin-bottom:14px}
 .exec-summary h3{font-size:14px;font-weight:700;color:var(--lima);margin-bottom:12px;letter-spacing:.5px}
-.exec-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.exec-cols{display:block}
 .exec-col h4{font-size:10px;text-transform:uppercase;color:rgba(255,255,255,.6);letter-spacing:.5px;margin-bottom:8px}
 .exec-col ul{list-style:none}
 .exec-col ul li{font-size:11px;color:rgba(255,255,255,.9);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:flex-start;gap:6px}
@@ -271,25 +271,23 @@ tr:nth-child(even) td{background:#f8faf9}
   <div class="card"><div class="section-title">Rotas Mais Frequentes <span id="lbl-rotas">top 15</span></div><div class="chart-container tall"><canvas id="chart-rotas"></canvas></div></div>
 </div>
 <div class="grid-2">
-  <div class="card"><div class="section-title">Cidade Origem <span id="lbl-origem">—</span></div><div class="chart-container"><canvas id="chart-origem"></canvas></div></div>
-  <div class="card"><div class="section-title">Cidade Destino <span id="lbl-destino">—</span></div><div class="chart-container"><canvas id="chart-destino"></canvas></div></div>
+  <div class="card"><div class="section-title">Indicadores por Motorista <span id="lbl-tab-mot">≥12 viagens</span></div><div style="max-height:320px;overflow-y:auto"><table id="tbl-motoristas"><thead><tr><th>Motorista</th><th style="text-align:right">Viagens <button onclick="toggleMotSort()" id="sort-mot-btn" title="Alternar ordem crescente/decrescente" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:3px;padding:1px 5px;cursor:pointer;font-size:9px;margin-left:4px">↓</button></th><th style="text-align:right">Peso Total</th></tr></thead><tbody></tbody></table></div></div>
+  <div class="card"><div class="section-title">Resumo por Veículo <span id="lbl-tab-vei">top 20</span></div><div style="max-height:320px;overflow-y:auto"><table id="tbl-veiculos"><thead><tr><th>Veículo</th><th style="text-align:right">Viagens</th><th style="text-align:right">Peso Total</th></tr></thead><tbody></tbody></table></div></div>
 </div>
 <div class="grid-2">
-  <div class="card"><div class="section-title">Resumo Financeiro por Motorista <span id="lbl-tab-mot">≥12 viagens</span></div><div style="max-height:320px;overflow-y:auto"><table id="tbl-motoristas"><thead><tr><th>Motorista</th><th style="text-align:right">Viagens <button onclick="toggleMotSort()" id="sort-mot-btn" title="Alternar ordem crescente/decrescente" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:3px;padding:1px 5px;cursor:pointer;font-size:9px;margin-left:4px">↓</button></th><th style="text-align:right">Peso Total</th></tr></thead><tbody></tbody></table></div></div>
-  <div class="card"><div class="section-title">Resumo por Veículo <span id="lbl-tab-vei">top 20</span></div><div style="max-height:320px;overflow-y:auto"><table id="tbl-veiculos"><thead><tr><th>Veículo</th><th style="text-align:right">Viagens</th><th style="text-align:right">Peso Total</th></tr></thead><tbody></tbody></table></div></div>
+  <div class="card"><div class="section-title">Cidade Origem <span id="lbl-origem">—</span></div><div class="chart-container"><canvas id="chart-origem"></canvas></div></div>
+  <div class="card"><div class="section-title">Cidade Destino <span id="lbl-destino">—</span></div><div class="chart-container"><canvas id="chart-destino"></canvas></div></div>
 </div>
 <div class="exec-summary">
   <h3>📋 RESUMO EXECUTIVO — Insights Automáticos</h3>
   <div class="exec-cols">
     <div class="exec-col"><h4>🎯 Recomendações</h4><ul id="exec-rec">
-      <li>Acompanhar motoristas com saldo a pagar concentrado no fim do período</li>
-      <li>Revisar rotas com maior peso transportado e custo de imposto</li>
-      <li>Padronizar cadastro de cidade origem/destino para reduzir registros em branco</li>
-      <li>Negociar adiantamentos proporcionais ao histórico de viagens por motorista</li>
-      <li>Monitorar veículos com alta frequência de viagens para manutenção preventiva</li>
+      <li>Acompanhar de perto os motoristas do ranking Top 10 (viagens e frete total)</li>
+      <li>Padronizar o cadastro de cidade origem/destino para reduzir registros em branco</li>
+      <li>Priorizar manutenção preventiva nos veículos com maior número de viagens</li>
+      <li>Usar o indicador de 12+ viagens para identificar motoristas recorrentes e negociar condições fixas</li>
+      <li>Revisar as rotas mais frequentes para avaliar contratos ou parcerias fixas com transportadoras</li>
     </ul></div>
-    <div class="exec-col"><h4>✅ Destaques Positivos</h4><ul id="exec-pos"></ul></div>
-    <div class="exec-col"><h4>⚠️ Alertas e Riscos</h4><ul id="exec-neg"></ul></div>
   </div>
 </div>
 <div class="insights-grid">
@@ -633,18 +631,23 @@ function renderInsights(){
   const n=FILTERED.length;if(!n)return;
   const motGrp=groupCount('motorista'),topMot=sorted(motGrp,1)[0];
   const veiGrp=groupCount('veiculo'),topVei=sorted(veiGrp,1)[0];
-  const freteMotGrp=groupSum('motorista','frete'),topFreteMot=sorted(freteMotGrp,1)[0];
+  const rotaGrp={};FILTERED.forEach(r=>{if(!r.origem||!r.destino)return;const k=r.origem+' → '+r.destino;rotaGrp[k]=(rotaGrp[k]||0)+1;});
+  const topRota=sorted(rotaGrp,1)[0];
+  const origemGrp=groupCount('origem'),topOrigem=sorted(origemGrp,1)[0];
+  const destinoGrp=groupCount('destino'),topDestino=sorted(destinoGrp,1)[0];
   const semRota=FILTERED.filter(r=>!r.origem||!r.destino).length;
   const freq12=Object.values(motGrp).filter(v=>v>=12).length;
+  const pesoMedio=sum(FILTERED.map(r=>r.peso))/n;
   document.getElementById('insights-pos').innerHTML=[
     topMot?`<div class="insight-item pos"><span class="insight-icon">🧑‍✈️</span><span><strong>${topMot[0]}</strong> é o motorista com mais viagens (${fmtN(topMot[1])})</span></div>`:'',
     topVei?`<div class="insight-item info"><span class="insight-icon">🚛</span><span><strong>${topVei[0]}</strong> é o veículo mais utilizado (${fmtN(topVei[1])} viagens)</span></div>`:'',
-    topFreteMot?`<div class="insight-item info"><span class="insight-icon">💰</span><span><strong>${topFreteMot[0]}</strong> concentra o maior frete total (${fmtMoneyShort(topFreteMot[1])})</span></div>`:'',
+    topRota?`<div class="insight-item info"><span class="insight-icon">🗺️</span><span>Rota mais frequente: <strong>${topRota[0]}</strong> (${fmtN(topRota[1])} viagens)</span></div>`:'',
     `<div class="insight-item info"><span class="insight-icon">📈</span><span><strong>${fmtN(freq12)}</strong> motoristas com 12 ou mais viagens no período filtrado</span></div>`,
   ].join('');
   document.getElementById('insights-neg').innerHTML=[
     semRota/n*100>20?`<div class="insight-item neg"><span class="insight-icon">🚨</span><span><strong>${(semRota/n*100).toFixed(1)}% das viagens</strong> sem cidade origem/destino preenchida</span></div>`:'',
-    `<div class="insight-item warn"><span class="insight-icon">⚠️</span><span>Base com <strong>${fmtN(n)} viagens</strong> no período filtrado</span></div>`,
+    (topOrigem&&topDestino)?`<div class="insight-item warn"><span class="insight-icon">📍</span><span>Maior concentração: origem <strong>${topOrigem[0]}</strong>, destino <strong>${topDestino[0]}</strong></span></div>`:'',
+    `<div class="insight-item info"><span class="insight-icon">⚖️</span><span>Peso médio de <strong>${fmtKg(pesoMedio)}</strong> por viagem no período</span></div>`,
   ].join('');
 }
 
